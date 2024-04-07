@@ -6,10 +6,14 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
-@Getter @Setter
+@Getter
+@Setter
+@ToString
 public class PropertyEntity {
 
     @Id
@@ -26,5 +30,7 @@ public class PropertyEntity {
     @NotNull(message = "El precio no puede ser nulo")
     @Positive(message = "El precio debe ser mayor a 0")
     private double price;
+    @NotNull(message = "La fecha de creacion no puede ser nula")
+    private LocalDateTime createdAt;
 
 }

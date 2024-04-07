@@ -1,5 +1,7 @@
 package com.example.pruebatecnicabackend.domain.model;
 
+import java.time.LocalDateTime;
+
 public class PropertyModel {
 
     private Long id;
@@ -8,6 +10,7 @@ public class PropertyModel {
     private boolean availability;
     private String imageUrl;
     private double price;
+    private LocalDateTime createdAt;
 
     public PropertyModel() {
     }
@@ -19,6 +22,7 @@ public class PropertyModel {
         this.availability = availability;
         this.imageUrl = imageUrl;
         this.price = price;
+        this.createdAt = LocalDateTime.now();
     }
 
     public Long getId() {
@@ -67,5 +71,13 @@ public class PropertyModel {
 
     public void setPrice(double price) {
         this.price = price;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 }

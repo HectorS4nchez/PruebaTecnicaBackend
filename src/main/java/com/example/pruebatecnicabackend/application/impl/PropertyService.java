@@ -3,20 +3,16 @@ package com.example.pruebatecnicabackend.application.impl;
 import com.example.pruebatecnicabackend.application.service.PropertyServicePort;
 import com.example.pruebatecnicabackend.domain.model.PropertyModel;
 import com.example.pruebatecnicabackend.domain.port.PropertyPort;
+import com.example.pruebatecnicabackend.infrastructure.rest.dto.PropertyResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
-@RequiredArgsConstructor
 @Service
+@RequiredArgsConstructor
 public class PropertyService implements PropertyServicePort {
 
-    private PropertyPort propertyPort;
+    private final PropertyPort propertyPort;
 
-    public PropertyService(PropertyPort propertyPort) {
-        this.propertyPort = propertyPort;
-    }
 
     @Override
     public PropertyModel createProperty(PropertyModel property) {
@@ -24,13 +20,8 @@ public class PropertyService implements PropertyServicePort {
     }
 
     @Override
-    public List<PropertyModel> getProperties() {
-        return propertyPort.getProperties();
-    }
-
-    @Override
-    public List<PropertyModel> getProperties(double minPrice, double maxPrice) {
-        return propertyPort.getProperties(minPrice,maxPrice);
+    public PropertyResponse getProperties(double minPrice, double maxPrice) {
+        return propertyPort.getProperties(minPrice, maxPrice);
     }
 
     @Override
@@ -41,5 +32,10 @@ public class PropertyService implements PropertyServicePort {
     @Override
     public void deleteProperty(Long id) {
         propertyPort.deleteProperty(id);
+    }
+
+    @Override
+    public void rentProperty(Long id) {
+        propertyPort.rentProperty(id);
     }
 }
