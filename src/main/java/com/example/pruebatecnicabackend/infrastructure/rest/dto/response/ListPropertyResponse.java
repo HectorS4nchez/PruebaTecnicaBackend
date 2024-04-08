@@ -1,4 +1,4 @@
-package com.example.pruebatecnicabackend.infrastructure.rest.dto;
+package com.example.pruebatecnicabackend.infrastructure.rest.dto.response;
 
 
 import com.example.pruebatecnicabackend.domain.model.PropertyModel;
@@ -13,7 +13,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class PropertyResponse {
+public class ListPropertyResponse {
 
     private List<PropertyModel> properties;
     private String message;

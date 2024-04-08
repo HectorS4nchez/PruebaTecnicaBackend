@@ -1,4 +1,4 @@
-package com.example.pruebatecnicabackend.infrastructure.entities;
+package com.example.pruebatecnicabackend.infrastructure.adapter.entities;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;

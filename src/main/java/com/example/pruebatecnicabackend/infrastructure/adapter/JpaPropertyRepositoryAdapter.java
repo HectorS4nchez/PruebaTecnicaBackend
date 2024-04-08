@@ -2,9 +2,11 @@ package com.example.pruebatecnicabackend.infrastructure.adapter;
 
 import com.example.pruebatecnicabackend.domain.model.PropertyModel;
 import com.example.pruebatecnicabackend.domain.port.PropertyPort;
-import com.example.pruebatecnicabackend.infrastructure.adapter.SQL.repository.IJpaPropertyRepositoryAdapter;
-import com.example.pruebatecnicabackend.infrastructure.entities.PropertyEntity;
-import com.example.pruebatecnicabackend.infrastructure.rest.dto.PropertyResponse;
+import com.example.pruebatecnicabackend.infrastructure.adapter.repository.IJpaPropertyRepositoryAdapter;
+import com.example.pruebatecnicabackend.infrastructure.adapter.entities.PropertyEntity;
+import com.example.pruebatecnicabackend.infrastructure.rest.dto.response.ListPropertyResponse;
+import com.example.pruebatecnicabackend.infrastructure.rest.exceptions.CustomIllegalArgumentException;
+import com.example.pruebatecnicabackend.infrastructure.rest.exceptions.ErrorCode;
 import com.example.pruebatecnicabackend.infrastructure.rest.mapper.PropertyMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -29,115 +31,190 @@ public class JpaPropertyRepositoryAdapter implements PropertyPort {
     public PropertyModel createProperty(PropertyModel property) {
         logger.debug("Attempting to register a new property: {}", property);
 
-        validatePropertyFields(property);
-        validateUniqueName(property.getName());
-        validateLocation(property.getLocation());
-        validatePriceByLocation(property.getLocation(), property.getPrice());
-
         try {
+            validatePropertyFields(property);
+            validateUniqueName(property.getName());
+            validateLocation(property.getLocation());
+            validatePriceByLocation(property.getLocation(), property.getPrice());
+
             PropertyEntity propertyEntity = PropertyMapper.modelToEntity(property);
             PropertyEntity savedEntity = repositoryAdapter.save(propertyEntity);
             logger.info("Successfully created property with ID: {}", savedEntity.getId());
             return PropertyMapper.entityToModel(savedEntity);
+        } catch (CustomIllegalArgumentException e) {
+            logger.error("Error creating property: {}", e.getErrorCode().getMessage());
+            throw e;
         } catch (Exception e) {
-            logger.error("Error while creating property: {}", property, e);
+            logger.error("Unexpected error creating property: {}", e.getMessage());
+            throw new CustomIllegalArgumentException(ErrorCode.UNKNOWN_ERROR);
+        }
+    }
+
+    @Override
+    public ListPropertyResponse getProperties(double minPrice, double maxPrice) {
+        logger.info("Getting properties with price between {} and {}", minPrice, maxPrice);
+        try {
+            List<PropertyEntity> entities = repositoryAdapter.findByPriceBetweenAndAvailabilityTrue(minPrice, maxPrice);
+            if (entities.isEmpty()) {
+                logger.warn("No properties found that meet the search criteria");
+            } else {
+                logger.info("Found {} properties that meet criteria", entities.size());
+            }
+            List<PropertyModel> models = entities.stream()
+                    .map(PropertyMapper::entityToModel)
+                    .collect(Collectors.toList());
+            return new ListPropertyResponse(models, models.isEmpty() ? ErrorCode.INVALID_PROPERTY_CRITERIA.getMessage() : ErrorCode.REQUEST_SUCCESSFUL.getMessage());
+        } catch (Exception e) {
+            logger.error("Error getting properties", e);
             throw e;
         }
     }
 
     @Override
-    public PropertyResponse getProperties(double minPrice, double maxPrice) {
-        List<PropertyEntity> entities = repositoryAdapter.findByPriceBetweenAndAvailabilityTrue(minPrice, maxPrice);
-        List<PropertyModel> models = entities.stream()
-                .map(PropertyMapper::entityToModel)
-                .collect(Collectors.toList());
-        return new PropertyResponse(models, models.isEmpty() ? "No properties found that meet the criteria." : "The request was successful.");
-    }
-
-
-
     public PropertyModel updateProperty(PropertyModel updatedProperty) {
-        PropertyEntity existingEntity = repositoryAdapter.findById(updatedProperty.getId())
-                .orElseThrow(() -> new IllegalArgumentException("The property does not exist"));
+        try {
+            PropertyEntity existingEntity = repositoryAdapter.findById(updatedProperty.getId())
+                    .orElseThrow(() -> new CustomIllegalArgumentException(ErrorCode.PROPERTY_NOT_FOUND));
 
-        PropertyModel existingProperty = PropertyMapper.entityToModel(existingEntity);
+            PropertyModel existingProperty = PropertyMapper.entityToModel(existingEntity);
+            logger.debug("Property details before update: {}", existingEntity);
 
-        validatePropertyFields(updatedProperty);
+            validatePropertyFields(updatedProperty);
 
-        if (!existingProperty.isAvailability()) {
-            if (!existingProperty.getLocation().equals(updatedProperty.getLocation())) {
-                throw new IllegalArgumentException("Cannot modify the location of a leased property");
+            if (!existingProperty.isAvailability()) {
+                logger.warn("Attempt to modify property not available for rent, ID: {}", existingEntity.getId());
+                if (!existingProperty.getLocation().equals(updatedProperty.getLocation())) {
+                    throw new CustomIllegalArgumentException(ErrorCode.CANNOT_MODIFY_LEASED_PROPERTY_LOCATION);
+                }
+                if (existingProperty.getPrice() != updatedProperty.getPrice()) {
+                    throw new CustomIllegalArgumentException(ErrorCode.CANNOT_MODIFY_LEASED_PROPERTY_PRICE);
+                }
             }
-            if (existingProperty.getPrice() != updatedProperty.getPrice()) {
-                throw new IllegalArgumentException("Cannot modify the price of a leased property");
-            }
+
+            validatePriceByLocation(updatedProperty.getLocation(), updatedProperty.getPrice());
+            existingProperty.setName(updatedProperty.getName());
+            existingProperty.setAvailability(updatedProperty.isAvailability());
+            existingProperty.setImageUrl(updatedProperty.getImageUrl());
+            existingProperty.setLocation(updatedProperty.getLocation());
+            existingProperty.setPrice(updatedProperty.getPrice());
+            PropertyEntity updatedEntity = PropertyMapper.modelToEntity(existingProperty);
+            updatedEntity = repositoryAdapter.save(updatedEntity);
+            logger.info("Property with ID: {} updated successfully", updatedProperty.getId());
+            return PropertyMapper.entityToModel(updatedEntity);
+        } catch (CustomIllegalArgumentException e) {
+            logger.error("Error updating property: {}", e.getErrorCode().getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error updating property with ID: {}", updatedProperty.getId(), e);
+            throw e;
         }
-
-        validatePriceByLocation(updatedProperty.getLocation(), updatedProperty.getPrice());
-        existingProperty.setName(updatedProperty.getName());
-        existingProperty.setAvailability(updatedProperty.isAvailability());
-        existingProperty.setImageUrl(updatedProperty.getImageUrl());
-        existingProperty.setLocation(updatedProperty.getLocation());
-        existingProperty.setPrice(updatedProperty.getPrice());
-        PropertyEntity updatedEntity = PropertyMapper.modelToEntity(existingProperty);
-        updatedEntity = repositoryAdapter.save(updatedEntity);
-        return PropertyMapper.entityToModel(updatedEntity);
     }
-
 
     @Override
     public void deleteProperty(Long id) {
-        PropertyEntity entity = repositoryAdapter.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Property not found with ID: " + id));
+        try {
+            logger.info("Trying to delete property with ID: {}", id);
+            PropertyEntity entity = repositoryAdapter.findById(id)
+                    .orElseThrow(() -> new CustomIllegalArgumentException(ErrorCode.PROPERTY_NOT_FOUND));
 
-        long ageInDays = ChronoUnit.DAYS.between(entity.getCreatedAt(), LocalDateTime.now());
-        if (ageInDays > 30) {
-            throw new IllegalArgumentException("You can only delete properties less than a month old");
+            long ageInDays = ChronoUnit.DAYS.between(entity.getCreatedAt(), LocalDateTime.now());
+            if (ageInDays > 30) {
+                logger.warn("Property with ID: {} is too old to be deleted", id);
+                throw new CustomIllegalArgumentException(ErrorCode.PROPERTY_TOO_OLD_TO_DELETE);
+            }
+
+            entity.setAvailability(false);
+            repositoryAdapter.save(entity);
+            logger.info("Property with ID: {} logically deleted successfully", id);
+        } catch (CustomIllegalArgumentException e) {
+            logger.error("Error deleting property: {}", e.getErrorCode().getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error deleting property with ID: {}", id, e);
+            throw e;
         }
-
-        entity.setAvailability(false);
-        repositoryAdapter.save(entity);
     }
 
     @Override
     public void rentProperty(Long propertyId) {
-        PropertyEntity property = repositoryAdapter.findById(propertyId)
-                .orElseThrow(() -> new IllegalArgumentException("Property not found with ID: " + propertyId));
+        logger.info("Trying to rent property with ID: {}", propertyId);
+        try {
+            PropertyEntity property = repositoryAdapter.findById(propertyId)
+                    .orElseThrow(() -> new CustomIllegalArgumentException(ErrorCode.PROPERTY_NOT_FOUND));
 
-        if (!property.isAvailability()) {
-            throw new IllegalArgumentException("The property is no longer available for rent.");
+            if (!property.isAvailability()) {
+                logger.warn("Property with ID: {} is no longer available for rent", propertyId);
+                throw new CustomIllegalArgumentException(ErrorCode.PROPERTY_NOT_AVAILABLE_FOR_RENT);
+            }
+
+            property.setAvailability(false);
+            repositoryAdapter.save(property);
+            logger.info("Property with ID: {} rented successfully", propertyId);
+        } catch (CustomIllegalArgumentException e) {
+            logger.error("Error renting property: {}", e.getErrorCode().getMessage(), e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error renting property with ID: {}", propertyId, e);
+            throw e;
         }
-
-        property.setAvailability(false);
-        repositoryAdapter.save(property);
     }
 
 
+    @Override
+    public List<PropertyModel> findAllProperties() {
+        logger.info("Starting search for all available properties.");
+        try {
+            List<PropertyEntity> entities = (List<PropertyEntity>) repositoryAdapter.findAll();
+
+            if (entities.isEmpty()) {
+                logger.info("No available properties found.");
+            } else {
+                logger.info("{} available properties found.", entities.size());
+            }
+
+            return entities.stream()
+                    .map(PropertyMapper::entityToModel)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            logger.error("Unexpected error while trying to retrieve all properties.", e);
+            throw e;
+        }
+    }
+
     private void validatePropertyFields(PropertyModel property) {
+        logger.debug("Validating property fields: {}", property);
         if (property.getName() == null || property.getName().trim().isEmpty() ||
                 property.getLocation() == null || property.getLocation().trim().isEmpty() ||
                 property.getImageUrl() == null || property.getImageUrl().trim().isEmpty() ||
                 property.getPrice() <= 0) {
-            throw new IllegalArgumentException("Property fields must not be empty and price must be greater than 0");
+            logger.warn("Property fields are invalid: {}", property);
+            throw new CustomIllegalArgumentException(ErrorCode.PROPERTY_FIELDS_EMPTY);
         }
     }
 
     private void validateUniqueName(String name) {
-        if (repositoryAdapter.findByName(name) == null) {
-            throw new IllegalArgumentException("A property with the same name already exists");
-        }
+        logger.debug("Validating unique name for property: {}", name);
+        repositoryAdapter.findByName(name).ifPresent(s -> {
+            logger.warn("The property name already exists: {}", name);
+            throw new CustomIllegalArgumentException(ErrorCode.PROPERTY_NAME_EXISTS);
+        });
     }
 
     private void validateLocation(String location) {
+        logger.debug("Validating property location: {}", location);
         List<String> allowedLocations = Arrays.asList("Medellin", "Bogota", "Cali", "Cartagena");
         if (!allowedLocations.contains(location)) {
-            throw new IllegalArgumentException("Property location is not valid");
+            logger.warn("Invalid property location: {}", location);
+            throw new CustomIllegalArgumentException(ErrorCode.INVALID_PROPERTY_LOCATION);
         }
     }
 
     private void validatePriceByLocation(String location, double price) {
-        if (("Bogota".equals(location) || "Cali".equals(location)) && price <= 2000000) {
-            throw new IllegalArgumentException("Properties in Bogotá and Cali must have a price greater than 2,000,000");
+        logger.debug("Validating price by location. Location: {}, Price: {}", location, price);
+        if (("Bogota".equals(location) || "Cali".equals(location)) && price < 2000000) {
+            logger.warn("The property price in {} is less than the minimum required: {}", location, price);
+            throw new CustomIllegalArgumentException(ErrorCode.PRICE_LESS_THAN_MINIMUM);
         }
     }
+
 }
