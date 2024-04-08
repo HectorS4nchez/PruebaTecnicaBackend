@@ -2,9 +2,9 @@ package com.example.pruebatecnicabackend.infrastructure.adapter;
 
 import com.example.pruebatecnicabackend.domain.model.PropertyModel;
 import com.example.pruebatecnicabackend.domain.port.PropertyPort;
-import com.example.pruebatecnicabackend.infrastructure.adapter.SQL.repository.IJpaPropertyRepositoryAdapter;
-import com.example.pruebatecnicabackend.infrastructure.entities.PropertyEntity;
-import com.example.pruebatecnicabackend.infrastructure.rest.dto.PropertyResponse;
+import com.example.pruebatecnicabackend.infrastructure.adapter.repository.IJpaPropertyRepositoryAdapter;
+import com.example.pruebatecnicabackend.infrastructure.adapter.entities.PropertyEntity;
+import com.example.pruebatecnicabackend.infrastructure.rest.dto.response.ListPropertyResponse;
 import com.example.pruebatecnicabackend.infrastructure.rest.mapper.PropertyMapper;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -34,26 +34,22 @@ public class JpaPropertyRepositoryAdapter implements PropertyPort {
         validateLocation(property.getLocation());
         validatePriceByLocation(property.getLocation(), property.getPrice());
 
-        try {
-            PropertyEntity propertyEntity = PropertyMapper.modelToEntity(property);
-            PropertyEntity savedEntity = repositoryAdapter.save(propertyEntity);
-            logger.info("Successfully created property with ID: {}", savedEntity.getId());
-            return PropertyMapper.entityToModel(savedEntity);
-        } catch (Exception e) {
-            logger.error("Error while creating property: {}", property, e);
-            throw e;
-        }
+
+        PropertyEntity propertyEntity = PropertyMapper.modelToEntity(property);
+        PropertyEntity savedEntity = repositoryAdapter.save(propertyEntity);
+        logger.info("Successfully created property with ID: {}", savedEntity.getId());
+        return PropertyMapper.entityToModel(savedEntity);
+
     }
 
     @Override
-    public PropertyResponse getProperties(double minPrice, double maxPrice) {
+    public ListPropertyResponse getProperties(double minPrice, double maxPrice) {
         List<PropertyEntity> entities = repositoryAdapter.findByPriceBetweenAndAvailabilityTrue(minPrice, maxPrice);
         List<PropertyModel> models = entities.stream()
                 .map(PropertyMapper::entityToModel)
                 .collect(Collectors.toList());
-        return new PropertyResponse(models, models.isEmpty() ? "No properties found that meet the criteria." : "The request was successful.");
+        return new ListPropertyResponse(models, models.isEmpty() ? "No properties found that meet the criteria." : "The request was successful.");
     }
-
 
 
     public PropertyModel updateProperty(PropertyModel updatedProperty) {
@@ -84,7 +80,6 @@ public class JpaPropertyRepositoryAdapter implements PropertyPort {
         return PropertyMapper.entityToModel(updatedEntity);
     }
 
-
     @Override
     public void deleteProperty(Long id) {
         PropertyEntity entity = repositoryAdapter.findById(id)
@@ -112,6 +107,13 @@ public class JpaPropertyRepositoryAdapter implements PropertyPort {
         repositoryAdapter.save(property);
     }
 
+    @Override
+    public List<PropertyModel> findAllProperties() {
+        List<PropertyEntity> entities = (List<PropertyEntity>) repositoryAdapter.findAll();
+        return entities.stream()
+                .map(PropertyMapper::entityToModel)
+                .collect(Collectors.toList());
+    }
 
     private void validatePropertyFields(PropertyModel property) {
         if (property.getName() == null || property.getName().trim().isEmpty() ||

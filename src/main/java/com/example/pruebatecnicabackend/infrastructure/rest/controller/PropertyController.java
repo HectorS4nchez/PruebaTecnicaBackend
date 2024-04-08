@@ -1,10 +1,12 @@
 package com.example.pruebatecnicabackend.infrastructure.rest.controller;
 
-import com.example.pruebatecnicabackend.application.impl.PropertyService;
+import com.example.pruebatecnicabackend.application.service.PropertyService;
 import com.example.pruebatecnicabackend.domain.model.PropertyModel;
-import com.example.pruebatecnicabackend.infrastructure.rest.dto.PropertyResponse;
+import com.example.pruebatecnicabackend.infrastructure.rest.dto.response.ListPropertyResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/properties")
@@ -23,8 +25,8 @@ public class PropertyController {
     }
 
     @GetMapping
-    public ResponseEntity<PropertyResponse> getProperties(@RequestParam double minPrice, @RequestParam double maxPrice) {
-        PropertyResponse response = propertyService.getProperties(minPrice, maxPrice);
+    public ResponseEntity<ListPropertyResponse> getProperties(@RequestParam double minPrice, @RequestParam double maxPrice) {
+        ListPropertyResponse response = propertyService.getProperties(minPrice, maxPrice);
         return ResponseEntity.ok(response);
     }
 
@@ -45,6 +47,12 @@ public class PropertyController {
     public ResponseEntity<String> rentProperty(@PathVariable Long id) {
         propertyService.rentProperty(id);
         return ResponseEntity.ok("Property leased successfully.");
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<List<PropertyModel>> getAllProperties() {
+        List<PropertyModel> properties = propertyService.findAllProperties();
+        return ResponseEntity.ok(properties);
     }
 
 }
