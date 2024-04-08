@@ -1,6 +1,6 @@
-package com.example.pruebatecnicabackend.infrastructure.adapter.SQL.repository;
+package com.example.pruebatecnicabackend.infrastructure.adapter.repository;
 
-import com.example.pruebatecnicabackend.infrastructure.entities.PropertyEntity;
+import com.example.pruebatecnicabackend.infrastructure.adapter.entities.PropertyEntity;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 

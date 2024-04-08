@@ -1,7 +1,7 @@
 package com.example.pruebatecnicabackend.infrastructure.rest.mapper;
 
 import com.example.pruebatecnicabackend.domain.model.PropertyModel;
-import com.example.pruebatecnicabackend.infrastructure.entities.PropertyEntity;
+import com.example.pruebatecnicabackend.infrastructure.adapter.entities.PropertyEntity;
 
 
 public class PropertyMapper {
