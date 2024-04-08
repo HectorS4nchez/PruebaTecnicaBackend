@@ -4,6 +4,8 @@ import com.example.pruebatecnicabackend.domain.model.PropertyModel;
 import com.example.pruebatecnicabackend.infrastructure.adapter.entities.PropertyEntity;
 import com.example.pruebatecnicabackend.infrastructure.adapter.repository.IJpaPropertyRepositoryAdapter;
 import com.example.pruebatecnicabackend.infrastructure.rest.dto.response.ListPropertyResponse;
+import com.example.pruebatecnicabackend.infrastructure.rest.exceptions.CustomIllegalArgumentException;
+import com.example.pruebatecnicabackend.infrastructure.rest.exceptions.ErrorCode;
 import com.example.pruebatecnicabackend.infrastructure.rest.mapper.PropertyMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -69,7 +72,7 @@ import static org.mockito.Mockito.*;
         inputModel.setPrice(3000000);
 
         // Then
-        assertThrows(IllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.createProperty(inputModel));
+        assertThrows(CustomIllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.createProperty(inputModel));
     }
 
     @Test
@@ -83,7 +86,7 @@ import static org.mockito.Mockito.*;
         inputModel.setPrice(3000000);
 
         // Then
-        assertThrows(IllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.createProperty(inputModel));
+        assertThrows(CustomIllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.createProperty(inputModel));
     }
 
     @Test
@@ -117,7 +120,6 @@ import static org.mockito.Mockito.*;
         ListPropertyResponse response = jpaPropertyRepositoryAdapter.getProperties(minPrice, maxPrice);
 
         // Then
-        assertEquals("The request was successful.", response.getMessage());
         assertEquals(2, response.getProperties().size());
         assertEquals(entity1.getId(), response.getProperties().get(0).getId());
         assertEquals(entity1.getName(), response.getProperties().get(0).getName());
@@ -178,7 +180,7 @@ import static org.mockito.Mockito.*;
         when(repositoryAdapter.findById(updatedProperty.getId())).thenReturn(Optional.empty());
 
         // When/Then
-        assertThrows(IllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.updateProperty(updatedProperty));
+        assertThrows(CustomIllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.updateProperty(updatedProperty));
     }
 
     @Test
@@ -189,7 +191,7 @@ import static org.mockito.Mockito.*;
         when(repositoryAdapter.findById(updatedProperty.getId())).thenReturn(Optional.of(existingEntity));
 
         // When/Then
-        assertThrows(IllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.updateProperty(updatedProperty));
+        assertThrows(CustomIllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.updateProperty(updatedProperty));
     }
 
     @Test
@@ -200,7 +202,7 @@ import static org.mockito.Mockito.*;
         when(repositoryAdapter.findById(updatedProperty.getId())).thenReturn(Optional.of(existingEntity));
 
         // When/Then
-        assertThrows(IllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.updateProperty(updatedProperty));
+        assertThrows(CustomIllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.updateProperty(updatedProperty));
     }
 
     @Test
@@ -228,7 +230,7 @@ import static org.mockito.Mockito.*;
         when(repositoryAdapter.findById(id)).thenReturn(Optional.of(entity));
 
         // When/Then
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThrows(CustomIllegalArgumentException.class, () -> {
             jpaPropertyRepositoryAdapter.deleteProperty(id);
         }, "Properties that are more than a month old cannot be deleted");
     }
@@ -262,7 +264,7 @@ import static org.mockito.Mockito.*;
         given(repositoryAdapter.findById(propertyId)).willReturn(Optional.of(propertyEntity));
 
         // When/Then
-        assertThrows(IllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.rentProperty(propertyId));
+        assertThrows(CustomIllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.rentProperty(propertyId));
         verify(repositoryAdapter, never()).save(any(PropertyEntity.class));
     }
 
@@ -321,25 +323,25 @@ import static org.mockito.Mockito.*;
         assertEquals(1800000, result.get(2).getPrice(), 0.001);
     }
 
-    @Test
-     void test_property_with_same_name_already_exists() {
-        // Given
-        PropertyModel inputModel = new PropertyModel();
-        inputModel.setName("Test House");
-        inputModel.setLocation("Medellin");
-        inputModel.setAvailability(true);
-        inputModel.setImageUrl("http://example.com/image.jpg");
-        inputModel.setPrice(3000000);
+   @Test
+   void test_property_with_same_name_already_exists() {
+      // Given
+      PropertyModel inputModel = new PropertyModel();
+      inputModel.setName("Test House");
+      inputModel.setLocation("Medellin");
+      inputModel.setAvailability(true);
+      inputModel.setImageUrl("http://example.com/image.jpg");
+      inputModel.setPrice(3000000);
 
-        PropertyEntity mockedExistingEntity = new PropertyEntity();
-        mockedExistingEntity.setId(1L);
-        mockedExistingEntity.setName("Test House");
+      PropertyEntity mockedExistingEntity = new PropertyEntity();
+      mockedExistingEntity.setId(1L);
+      mockedExistingEntity.setName("Test House");
 
-        when(repositoryAdapter.findByName(anyString())).thenReturn(any());
+      when(repositoryAdapter.findByName("Test House")).thenReturn(Optional.of(mockedExistingEntity));
 
-        // Then
-        assertThrows(IllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.createProperty(inputModel));
-    }
+      // Then
+      assertThrows(CustomIllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.createProperty(inputModel));
+   }
 
     @Test
      void test_property_location_not_valid() {
@@ -352,7 +354,7 @@ import static org.mockito.Mockito.*;
         inputModel.setPrice(3000000);
 
         // Then
-        assertThrows(IllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.createProperty(inputModel));
+        assertThrows(CustomIllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.createProperty(inputModel));
     }
 
     @Test
@@ -366,7 +368,72 @@ import static org.mockito.Mockito.*;
         inputModel.setPrice(1000000);
 
         // Then
-        assertThrows(IllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.createProperty(inputModel));
+        assertThrows(CustomIllegalArgumentException.class, () -> jpaPropertyRepositoryAdapter.createProperty(inputModel));
     }
+
+   @Test
+    void test_unexpected_error_creating_property() {
+      // Given
+      PropertyModel property = new PropertyModel();
+      property.setName("Test Property");
+      property.setLocation("Medellin");
+      property.setImageUrl("https://example.com/image.jpg");
+      property.setPrice(2500000);
+
+      IJpaPropertyRepositoryAdapter repositoryAdapterMock = mock(IJpaPropertyRepositoryAdapter.class);
+      when(repositoryAdapterMock.save(any(PropertyEntity.class))).thenThrow(new RuntimeException("Unexpected error"));
+
+      JpaPropertyRepositoryAdapter propertyPort = new JpaPropertyRepositoryAdapter(repositoryAdapterMock);
+
+      // Then
+      Exception exception = assertThrows(Exception.class, () -> propertyPort.createProperty(property));
+
+
+      assertTrue(exception instanceof CustomIllegalArgumentException);
+      assertEquals(ErrorCode.UNKNOWN_ERROR.getMessage(), exception.getMessage());
+   }
+
+   @Test
+   public void test_no_properties_found() {
+      // Given
+      double minPrice = 1000000;
+      double maxPrice = 2000000;
+
+      List<PropertyEntity> entities = new ArrayList<>();
+
+      when(repositoryAdapter.findByPriceBetweenAndAvailabilityTrue(minPrice, maxPrice)).thenReturn(entities);
+
+      // When
+      ListPropertyResponse response = jpaPropertyRepositoryAdapter.getProperties(minPrice, maxPrice);
+
+      // Then
+      assertTrue(response.getProperties().isEmpty());
+      assertEquals(ErrorCode.INVALID_PROPERTY_CRITERIA.getMessage(), response.getMessage());
+   }
+
+   @Test
+   public void test_unexpected_error_during_search() {
+      // Given
+      double minPrice = 1000000;
+      double maxPrice = 2000000;
+
+      when(repositoryAdapter.findByPriceBetweenAndAvailabilityTrue(minPrice, maxPrice)).thenThrow(new RuntimeException("Unexpected error"));
+
+      // When/Then
+      assertThrows(RuntimeException.class, () -> jpaPropertyRepositoryAdapter.getProperties(minPrice, maxPrice));
+   }
+
+   @Test
+   public void test_return_empty_list_when_repository_has_no_data() {
+      // Given
+      List<PropertyEntity> entities = Collections.emptyList();
+      given(repositoryAdapter.findAll()).willReturn(entities);
+
+      // When
+      List<PropertyModel> result = jpaPropertyRepositoryAdapter.findAllProperties();
+
+      // Then
+      assertTrue(result.isEmpty());
+   }
 
 }
