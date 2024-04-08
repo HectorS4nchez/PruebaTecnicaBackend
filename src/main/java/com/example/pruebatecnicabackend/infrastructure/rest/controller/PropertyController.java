@@ -37,7 +37,7 @@ public class PropertyController {
         return ResponseEntity.ok(updatedProperty);
     }
 
-    @DeleteMapping("/{id}")
+    @PutMapping("/delete/{id}")
     public ResponseEntity<String> deleteProperty(@PathVariable Long id) {
         propertyService.deleteProperty(id);
         return ResponseEntity.ok("Property deleted (under logic) successfully.");
